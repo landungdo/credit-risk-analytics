@@ -58,10 +58,16 @@ def top_drivers(explainer, X_row, top_n: int = 4):
     drivers = []
     for i in order:
         feat = feature_names[i]
+        raw_value = X_row.iloc[0, i]
+        # Convert numpy / pandas scalars to native Python types for JSON safety
+        if hasattr(raw_value, "item"):
+            value = raw_value.item()
+        else:
+            value = raw_value
         drivers.append({
             "feature": feat,
             "description": FEATURE_DESCRIPTIONS.get(feat, feat),
-            "value": X_row.iloc[0, i],
+            "value": value,
             "shap": float(sv[i]),
             "direction": "increases_risk" if sv[i] > 0 else "decreases_risk",
         })
