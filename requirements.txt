@@ -1,0 +1,30 @@
+# Data & Analysis
+pandas
+numpy
+scikit-learn
+
+# Modeling
+xgboost<3.0.0  # pinned: SHAP TreeExplainer is incompatible with xgboost >= 3.0
+lightgbm
+
+# Explainability
+shap
+
+# Visualization
+matplotlib
+seaborn
+
+# LLM explanation layer (Week 4)
+anthropic
+
+# Notebook support
+jupyter
+ipykernel
+
+# API (Week 8)
+fastapi
+uvicorn
+pydantic
+
+# Testing (Week 9)
+pytest
