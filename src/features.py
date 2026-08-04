@@ -56,7 +56,12 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    from oot_split import load_resolved_loans
+    # Works whether run from the project root (`python src/features.py`)
+    # or from inside src/ — falls back gracefully for both.
+    try:
+        from src.oot_split import load_resolved_loans
+    except ModuleNotFoundError:
+        from oot_split import load_resolved_loans
 
     resolved = load_resolved_loans("data/sample.csv")
     features = engineer_features(resolved)
