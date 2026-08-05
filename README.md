@@ -1,14 +1,30 @@
 # Explainable Credit Risk & Portfolio Analytics Platform
 
+![CI](https://github.com/landungdo/credit-risk-analytics/actions/workflows/ci.yml/badge.svg)
+
 A probability-of-default (PD) credit risk model built with methodology that
 mirrors real-world credit risk practice: out-of-time validation, probability
 calibration, SHAP-based explanations grounded in natural language, fairness
-auditing, and portfolio-level risk aggregation.
+auditing, portfolio-level risk aggregation, drift monitoring, and a FastAPI
+serving layer.
 
-> **Status:** 🚧 In progress — Weeks 1–2 complete (EDA, target definition,
-> out-of-time split, feature engineering).
+## Results (out-of-time test, 2016 vintage)
 
-## Key finding (so far)
+| Metric | Train | Validation (2015) | Test (2016, OOT) |
+|---|---|---|---|
+| AUC | 0.79 | 0.72 | 0.68 |
+| KS | 0.44 | 0.32 | 0.28 |
+
+Isotonic calibration reduces the Brier score on the held-out test vintage and
+brings predicted probabilities in line with observed default rates:
+
+![Reliability diagram](reports/reliability_diagram.png)
+
+The train-to-test gap is visible and *measured* rather than hidden — a
+consequence of using an out-of-time split instead of a random one. See the
+"Key finding" below.
+
+## Key finding: right-censoring by vintage
 
 Loan outcomes in the Lending Club data are **right-censored by vintage**: the
 share of loans that have reached a final outcome (Fully Paid / Charged Off)
@@ -29,28 +45,44 @@ for the full analysis.
 - **Probability calibration** — a PD must be a real probability (used directly
   for expected-loss and capital calculations), not just a well-ranked score.
 - **Grounded explanations** — SHAP identifies the drivers of each decision; an
-  LLM layer translates them into natural-language adverse-action reasons without
-  inventing factors beyond what SHAP surfaced.
-- **Fairness audit** — disparate-impact checks across proxy groups.
+  LLM layer translates them into natural-language adverse-action reasons, with a
+  validation guard that rejects any explanation introducing factors SHAP did not
+  surface. See [`src/llm_explain.py`](src/llm_explain.py).
+- **Fairness audit** — disparate-impact / four-fifths-rule checks across income
+  and region proxy groups.
 - **Portfolio layer** — aggregates PD into expected loss (PD × LGD × EAD) and a
-  Basel-style capital estimate.
-- **PSI monitoring** — detects population drift over time, including drift that
-  is invisible in aggregate metrics.
+  Basel IRB-style capital estimate.
+- **PSI monitoring** — segmented drift detection that surfaces subgroup drift an
+  aggregate metric would hide. See [`PSI_FINDINGS.md`](PSI_FINDINGS.md).
+- **Serving + CI** — FastAPI service ([`API.md`](API.md)), Dockerfile, and a
+  GitHub Actions pipeline running the test suite on every push.
 
 ## Project structure
 
 ```
 credit-risk-analytics/
-├── src/                 # Core modules (imported by tests, API)
-│   ├── oot_split.py     # Target definition + out-of-time train/val/test split
-│   └── features.py      # Feature engineering
-├── notebooks/           # Exploratory analysis
-│   └── 01_eda.py        # Week 1 EDA (VS Code cell format)
-├── scripts/             # One-off utilities
-│   └── make_sample.py   # Generates a lightweight sample from the full dataset
-├── data/                # Local only — not tracked (see .gitignore)
-├── TARGET_DEFINITION.md # Target logic + right-censoring analysis
-└── requirements.txt
+├── src/                    # Core modules (imported by tests and the API)
+│   ├── oot_split.py        # Target definition + out-of-time split
+│   ├── features.py         # Feature engineering
+│   ├── model.py            # XGBoost PD model
+│   ├── metrics.py          # AUC + KS
+│   ├── calibration.py      # Isotonic calibration + reliability diagram
+│   ├── explain.py          # SHAP drivers per applicant
+│   ├── llm_explain.py      # Grounded natural-language adverse-action reasons
+│   ├── fairness.py         # Disparate-impact audit
+│   ├── portfolio.py        # Expected loss + Basel capital
+│   └── psi.py              # Population Stability Index monitoring
+├── api.py                  # FastAPI service
+├── scripts/
+│   ├── make_sample.py      # Build a lightweight sample from the full dataset
+│   └── train_and_save.py   # Train and persist model artifacts for serving
+├── notebooks/01_eda.py     # EDA (VS Code cell format)
+├── tests/                  # pytest suite (17 tests)
+├── reports/                # Generated figures
+├── Dockerfile
+├── TARGET_DEFINITION.md    # Target logic + right-censoring analysis
+├── PSI_FINDINGS.md         # Drift monitoring findings
+└── API.md                  # API usage
 ```
 
 ## Data
@@ -75,5 +107,29 @@ pip install -r requirements.txt
 ```bash
 python notebooks/01_eda.py       # EDA + target definition + censoring finding
 python src/oot_split.py          # Out-of-time split summary
-python src/features.py           # Feature matrix summary
+python src/model.py              # Train model + AUC/KS
+python src/calibration.py        # Calibration + reliability diagram
+python src/fairness.py           # Fairness audit
+python src/portfolio.py          # Portfolio expected loss + capital
+python src/psi.py                # Drift monitoring
 ```
+
+## Run the API
+
+```bash
+python scripts/train_and_save.py   # persist model artifacts
+uvicorn api:app --reload           # docs at http://localhost:8000/docs
+```
+
+## Run the tests
+
+```bash
+pytest tests/ -v
+```
+
+## Notes
+
+The natural-language explanation layer calls the Anthropic API and requires
+`ANTHROPIC_API_KEY` to be set. All other components run offline. Metrics quoted
+above are from a representative sample run; exact figures vary slightly with the
+sample and random seed.
