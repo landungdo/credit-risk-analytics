@@ -193,6 +193,33 @@ ultimately for, and is the reason calibration (Section 5.2) matters.
 
 ---
 
+## 8b. From prediction to decision
+
+A PD score is an input, not a decision. Three components turn the model into a
+credit-risk decisioning system:
+
+**Decision policy simulator.** Sweeping the approval cutoff shows the
+approval-rate / default-rate / expected-profit trade-off. On the test book the
+profit-maximizing cutoff approves the lowest-risk ~35% of applicants at an ~11%
+default rate — deliberately not the lowest-default option, because interest on
+good loans outweighs the losses. Below that cutoff the book is profitable; loosen
+too far and it turns loss-making. This reframes the model output as a business
+decision with a quantified optimum.
+
+**Champion / challenger.** Model selection is treated as governance, not a
+leaderboard: a logistic champion is compared against the XGBoost challenger
+across discrimination (AUC/KS), calibration (Brier), latency, and
+interpretability. The challenger's ~0.01 AUC edge does not justify its lower
+interpretability for the decision itself, so the recommendation is to decide with
+the interpretable model and reserve the challenger for SHAP-based reason codes.
+
+**SQL risk mart.** Eight standard portfolio queries (vintage curves, bad-rate by
+grade, resolution rate, exposure concentration) run over the loan book in SQL —
+the reporting layer a risk team lives in alongside the model.
+
+A one-page executive memo translates all of this into business language for a
+non-technical stakeholder.
+
 ## 9. Drift monitoring
 
 Population Stability Index (PSI) is computed overall and segmented by subgroup.

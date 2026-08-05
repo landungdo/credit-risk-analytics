@@ -2,11 +2,12 @@
 
 ![CI](https://github.com/landungdo/credit-risk-analytics/actions/workflows/ci.yml/badge.svg)
 
-A probability-of-default (PD) credit risk model built with methodology that
-mirrors real-world credit risk practice: out-of-time validation, probability
-calibration, SHAP-based explanations grounded in natural language, fairness
-auditing, portfolio-level risk aggregation, drift monitoring, and a FastAPI
-serving layer.
+A credit risk **decision system** — not just a probability-of-default (PD)
+model. It pairs a PD model built with real-world methodology (out-of-time
+validation, probability calibration, SHAP-based grounded explanations, fairness
+auditing, portfolio risk aggregation, drift monitoring) with a **decision layer**
+that turns scores into approve/decline policy, a **SQL risk mart**, a
+**champion/challenger** model comparison, and a FastAPI serving layer with CI.
 
 > 📄 **For the full end-to-end write-up** — data sourcing, methodology, all
 > results, the four key findings, and conclusions — see **[REPORT.md](REPORT.md)**.
@@ -48,6 +49,27 @@ Removing the pricing variables costs only ~0.04 AUC, so the model is not merely
 echoing a pre-computed grade; and XGBoost beats a logistic baseline by only
 ~0.01, so the signal is largely linear. See
 [`ABLATION_FINDINGS.md`](ABLATION_FINDINGS.md) for the full discussion.
+
+## From prediction to decision
+
+The model's PD is only the input to a decision. Three components turn it into a
+credit-risk decisioning system:
+
+- **Decision policy simulator** ([`src/policy.py`](src/policy.py)) — sweeps the
+  approval cutoff and computes the approval-rate / default-rate / expected-profit
+  trade-off. On the test book the profit-maximizing cutoff approves the lowest-risk
+  ~35% and accepts an ~11% default rate — deliberately *not* the lowest-default
+  option, because interest on good loans outweighs the losses.
+- **Champion / challenger** ([`src/champion_challenger.py`](src/champion_challenger.py))
+  — compares a logistic champion against the XGBoost challenger across
+  discrimination, calibration, latency, and interpretability, and recommends the
+  interpretable model for decisions with the challenger reserved for SHAP reasons.
+- **SQL risk mart** ([`src/risk_mart.py`](src/risk_mart.py)) — eight standard
+  portfolio queries (vintage curves, bad-rate by grade, resolution rate,
+  concentration) run over the loan book in SQLite.
+
+A one-page [`EXECUTIVE_MEMO.md`](EXECUTIVE_MEMO.md) translates these results into
+business language for a non-technical stakeholder.
 
 ## Key finding: right-censoring by vintage
 
@@ -96,7 +118,10 @@ credit-risk-analytics/
 │   ├── llm_explain.py      # Grounded natural-language adverse-action reasons
 │   ├── fairness.py         # Disparate-impact audit
 │   ├── portfolio.py        # Expected loss + Basel capital
-│   └── psi.py              # Population Stability Index monitoring
+│   ├── psi.py              # Population Stability Index monitoring
+│   ├── policy.py           # Decision policy simulator (approve/decline/profit)
+│   ├── champion_challenger.py  # Multi-dimensional model comparison
+│   └── risk_mart.py        # SQL risk mart (8 portfolio queries)
 ├── api.py                  # FastAPI service
 ├── scripts/
 │   ├── make_sample.py      # Build a lightweight sample from the full dataset
@@ -107,6 +132,9 @@ credit-risk-analytics/
 ├── Dockerfile
 ├── TARGET_DEFINITION.md    # Target logic + right-censoring analysis
 ├── PSI_FINDINGS.md         # Drift monitoring findings
+├── ABLATION_FINDINGS.md    # Leakage check + baselines
+├── EXECUTIVE_MEMO.md       # Business-language summary
+├── REPORT.md / REPORT.vi.md # Full technical report (EN / VI)
 └── API.md                  # API usage
 ```
 
