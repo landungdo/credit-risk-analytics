@@ -37,7 +37,9 @@ requires.
 On the tested book, moving from a naive "approve most applicants" stance to the
 model-driven cutoff is the difference between a **six-figure loss and a
 six-figure profit** on the same set of loans — driven entirely by *which* loans
-are approved, not by approving more of them.
+are approved, not by approving more of them. This is a **retrospective
+simulation** on historical outcomes; a shadow/pilot run is needed to confirm it
+forward before the number can be claimed as realized profit.
 
 ## Risks and honest caveats
 
@@ -50,8 +52,9 @@ are approved, not by approving more of them.
 
 ## Recommendation
 
-1. Adopt the profit-based cutoff as the default approval policy, with a
-   manual-review band around the boundary.
+1. Evaluate the profit-based cutoff as a **candidate policy in a shadow/pilot
+   run** (score live applications without acting on them, compare to current
+   policy) before adopting it, with a manual-review band around the boundary.
 2. Deploy the interpretable model for decisions; keep the complex model for
    reason codes and monitoring.
 3. Review the drift watchlist next vintage before any re-tuning.

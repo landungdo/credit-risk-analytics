@@ -13,6 +13,16 @@ that turns scores into approve/decline policy, a **SQL risk mart**, a
 > results, the four key findings, and conclusions — see **[REPORT.md](REPORT.md)**.
 > This README is the quick tour.
 
+> ⚠️ **Scope note.** The target is a **resolved-loan, retrospective** default
+> label (Charged Off vs. Fully Paid, excluding still-open loans), not a fixed
+> "default within 12 months of origination" application target. This is the
+> right framing for retrospective credit-risk analysis; a bank-grade application
+> PD model would additionally define an observation date, a 12-month performance
+> window, and a fixed default horizon. The pricing variables `int_rate`, `grade`,
+> `sub_grade`, `installment` are also partly set at underwriting — they are
+> labelled `POST_DECISION_FEATURES` in [`src/features.py`](src/features.py) and
+> isolated in the ablation study.
+
 ## Results (out-of-time test, 2016 vintage)
 
 | Metric | Train | Validation (2015) | Test (2016, OOT) |

@@ -22,6 +22,24 @@ NUMERIC_COLS = [
     "delinq_2yrs", "open_acc", "pub_rec", "revol_bal", "revol_util", "total_acc",
 ]
 
+# --- Application-time boundary -------------------------------------------------
+# A strict application PD model should only use information known *before* the
+# lending decision. `int_rate`, `grade`, and `sub_grade` are assigned by Lending
+# Club's own pricing/underwriting, and `installment` is derived from them, so
+# they are outputs of a prior decision, not independent borrower attributes.
+#
+# These lists make that boundary explicit. The primary model uses all features
+# (FULL); the ablation study (experiments/ablation.py) trains a PRE_DECISION-only
+# model to quantify how much the pricing variables contribute. Documenting the
+# split is the point: a reviewer can see the boundary is understood rather than
+# ignored. See README "Limitations & design decisions".
+POST_DECISION_FEATURES = ["int_rate", "grade", "sub_grade", "installment"]
+
+PRE_DECISION_FEATURES = [
+    c for c in (CATEGORICAL_COLS + NUMERIC_COLS)
+    if c not in POST_DECISION_FEATURES
+] + ["emp_length_years", "credit_history_months"]
+
 EMP_LENGTH_MAP = {
     "< 1 year": 0, "1 year": 1, "2 years": 2, "3 years": 3, "4 years": 4,
     "5 years": 5, "6 years": 6, "7 years": 7, "8 years": 8, "9 years": 9,
