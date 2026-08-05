@@ -8,6 +8,10 @@ calibration, SHAP-based explanations grounded in natural language, fairness
 auditing, portfolio-level risk aggregation, drift monitoring, and a FastAPI
 serving layer.
 
+> 📄 **For the full end-to-end write-up** — data sourcing, methodology, all
+> results, the four key findings, and conclusions — see **[REPORT.md](REPORT.md)**.
+> This README is the quick tour.
+
 ## Results (out-of-time test, 2016 vintage)
 
 | Metric | Train | Validation (2015) | Test (2016, OOT) |

@@ -122,8 +122,10 @@ out-of-time split produces, versus the inflated one a random split would give.
 ### 5.2 Calibration
 
 Isotonic calibration lowers the Brier score on the test vintage (≈0.173 → 0.170)
-and pulls predicted probabilities toward the diagonal on the reliability diagram
-(`reports/reliability_diagram.png`), making the PD usable as a real probability.
+and pulls predicted probabilities toward the diagonal on the reliability diagram,
+making the PD usable as a real probability:
+
+![Reliability diagram](reports/reliability_diagram.png)
 
 ### 5.3 Ablation — leakage check and baselines
 
