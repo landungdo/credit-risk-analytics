@@ -24,6 +24,27 @@ The train-to-test gap is visible and *measured* rather than hidden — a
 consequence of using an out-of-time split instead of a random one. See the
 "Key finding" below.
 
+Calibration also tightens the Brier score on the test vintage (≈0.173 → 0.170),
+and the portfolio layer aggregates the calibrated PDs into an expected loss of
+~10% of exposure and a Basel IRB-style capital estimate of ~18% of exposure.
+
+### Ablation: leakage check and baselines
+
+Because `int_rate`, `grade`, and `sub_grade` are assigned by Lending Club's own
+risk process, [`experiments/ablation.py`](experiments/ablation.py) checks how
+much they inflate the result, and whether the gradient boosting is justified:
+
+| Model | AUC | KS |
+|---|---|---|
+| FULL — XGBoost, all features | 0.687 | 0.286 |
+| NO_PRICING — without int_rate/grade/sub_grade | 0.649 | 0.227 |
+| BASELINE — logistic regression | 0.676 | 0.260 |
+
+Removing the pricing variables costs only ~0.04 AUC, so the model is not merely
+echoing a pre-computed grade; and XGBoost beats a logistic baseline by only
+~0.01, so the signal is largely linear. See
+[`ABLATION_FINDINGS.md`](ABLATION_FINDINGS.md) for the full discussion.
+
 ## Key finding: right-censoring by vintage
 
 Loan outcomes in the Lending Club data are **right-censored by vintage**: the
@@ -127,9 +148,31 @@ uvicorn api:app --reload           # docs at http://localhost:8000/docs
 pytest tests/ -v
 ```
 
+## Limitations & design decisions
+
+Deliberately scoped choices, stated plainly so the results are read in context:
+
+- **Endogenous pricing features.** `int_rate` / `grade` / `sub_grade` are partly
+  outputs of Lending Club's own underwriting. They are kept in the primary model
+  but their effect is isolated in the ablation study; the NO_PRICING model is the
+  more conservative estimate of borrower-intrinsic risk.
+- **Class imbalance (~20% default).** Handled implicitly — tree models and the
+  AUC/KS/Brier metrics used here are threshold-independent, so the raw imbalance
+  is not resampled. A production scorecard would additionally tune a decision
+  threshold to a business cost matrix.
+- **Approval threshold in the fairness audit is illustrative** (approve the
+  ~70% lowest-risk). A real deployment would set it from an expected-loss or
+  acceptance-rate target, not a round number.
+- **Proxy fairness groups.** The data has no direct protected attributes, so the
+  audit uses income and region proxies; this screens for disparity but is not a
+  compliance-grade fair-lending analysis.
+- **LGD/EAD are fixed assumptions** (LGD 45%, EAD = loan amount) rather than
+  modeled, so the capital figure is illustrative of the pipeline, not a
+  regulatory number.
+- **Sample-based metrics.** Figures come from a representative sample run; exact
+  values vary slightly with the sample and random seed.
+
 ## Notes
 
 The natural-language explanation layer calls the Anthropic API and requires
-`ANTHROPIC_API_KEY` to be set. All other components run offline. Metrics quoted
-above are from a representative sample run; exact figures vary slightly with the
-sample and random seed.
+`ANTHROPIC_API_KEY` to be set. All other components run offline.
