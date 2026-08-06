@@ -32,10 +32,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
 from src.oot_split import load_resolved_loans, out_of_time_split
-from src.features import engineer_features, CATEGORICAL_COLS, NUMERIC_COLS
+from src.features import engineer_features, CATEGORICAL_COLS, NUMERIC_COLS, POST_DECISION_FEATURES
 from src.metrics import auc_score, ks_statistic
 
-PRICING_FEATURES = ["int_rate", "grade", "sub_grade"]
+# Use the single source of truth for the application-time boundary so the
+# ablation drops exactly the post-decision (pricing) features, including
+# installment (which is derived from amount, rate, and term).
+PRICING_FEATURES = POST_DECISION_FEATURES
 
 
 def _xgb():
@@ -118,7 +121,7 @@ def run():
     # 2. NO_PRICING
     m_np, _ = train_xgb(X_train, y_train, X_val, y_val, drop=PRICING_FEATURES)
     auc, ks = evaluate_on_test(m_np, X_test, y_test, drop=PRICING_FEATURES)
-    results.append(("NO_PRICING (drops int_rate/grade/sub_grade)", auc, ks))
+    results.append(("NO_PRICING (drops int_rate/grade/sub_grade/installment)", auc, ks))
 
     # 3. BASELINE (logistic on full features)
     m_lr, _ = train_logistic(X_train, y_train, X_val, y_val)
