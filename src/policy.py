@@ -94,6 +94,21 @@ def assign_decision(pd_score: float, approve_below: float, review_below: float) 
     return "DECLINE"
 
 
+def select_cutoff_on_validation(calibrated, X_val, val_df, lgd: float = DEFAULT_LGD):
+    """
+    Choose the profit-maximizing cutoff on the VALIDATION book (2015), so the
+    threshold is selected on data separate from the final test. Returns the
+    frozen cutoff and the validation policy table.
+    """
+    pd_val = calibrated.predict_proba(X_val)[:, 1]
+    policy_val = simulate_policy(
+        pd_val, val_df["target"].values,
+        val_df["loan_amnt"].values, val_df["int_rate"].values, lgd=lgd,
+    )
+    best = optimal_threshold(policy_val)
+    return best["threshold"], policy_val
+
+
 if __name__ == "__main__":
     try:
         from src.model import build_split, train_model
@@ -107,24 +122,34 @@ if __name__ == "__main__":
     (X_train, y_train), (X_val, y_val), (X_test, y_test) = build_split()
     model = train_model(X_train, y_train, X_val, y_val)
     calibrated = calibrate(model, X_val, y_val)
-    pd_scores = calibrated.predict_proba(X_test)[:, 1]
 
+    # Recover raw validation and test frames (for loan_amnt / int_rate / target)
     resolved = load_resolved_loans("data/sample.csv")
-    _, _, test_df = out_of_time_split(resolved)
-    loan_amnt = test_df["loan_amnt"].values
-    int_rate = test_df["int_rate"].values
+    _, val_df, test_df = out_of_time_split(resolved)
 
-    policy = simulate_policy(pd_scores, y_test, loan_amnt, int_rate)
+    # 1) SELECT the cutoff on the 2015 validation book (not the test book)
+    frozen_cutoff, policy_val = select_cutoff_on_validation(calibrated, X_val, val_df)
 
-    print("=== Decision policy trade-off (out-of-time test, 2016) ===\n")
-    with pd.option_context("display.float_format", lambda x: f"{x:,.3f}"):
-        print(policy.to_string(index=False))
+    # 2) EVALUATE that frozen cutoff on the untouched 2016 test book
+    pd_test = calibrated.predict_proba(X_test)[:, 1]
+    policy_test = simulate_policy(
+        pd_test, y_test, test_df["loan_amnt"].values, test_df["int_rate"].values,
+        thresholds=[frozen_cutoff],
+    )
+    frozen_row = policy_test.iloc[0]
 
-    best = optimal_threshold(policy)
-    print(f"\nProfit-maximizing cutoff: PD < {best['threshold']:.2f}")
-    print(f"  approval rate:          {best['approval_rate']:.1%}")
-    print(f"  approved default rate:  {best['approved_default_rate']:.1%}")
-    print(f"  total profit:           ${best['total_profit']:,.0f}")
+    print("=== Cutoff selected on 2015 validation, evaluated on 2016 test ===\n")
+    print(f"Selected cutoff on policy-validation (2015): PD < {frozen_cutoff:.2f}")
+    print(f"Frozen cutoff evaluated on OOT test (2016):  PD < {frozen_cutoff:.2f}\n")
+    print("On the untouched 2016 test book at the frozen cutoff:")
+    print(f"  approval rate:          {frozen_row['approval_rate']:.1%}")
+    print(f"  approved default rate:  {frozen_row['approved_default_rate']:.1%}")
+    print(f"  total profit:           ${frozen_row['total_profit']:,.0f}")
     print()
-    print("Note: the profit-maximizing cutoff is not the one that minimizes")
-    print("defaults - some default risk is worth taking for the interest income.")
+    print("The cutoff is chosen on validation and only then measured on test, so")
+    print("the reported test profit is free of the optimism bias that arises when")
+    print("the same book is used to both select and evaluate the policy.")
+    print()
+    print("Full validation trade-off table (where the cutoff was chosen):")
+    with pd.option_context("display.float_format", lambda x: f"{x:,.3f}"):
+        print(policy_val.to_string(index=False))

@@ -136,12 +136,12 @@ Three models on the same split:
 | Model | AUC | KS |
 |---|---|---|
 | FULL — XGBoost, all features | 0.687 | 0.286 |
-| NO_PRICING — without int_rate/grade/sub_grade | 0.649 | 0.227 |
+| NO_PRICING — without int_rate/grade/sub_grade/installment | 0.640 | 0.218 |
 | BASELINE — logistic regression, all features | 0.676 | 0.260 |
 
 ### Key finding #2 — the score is not mostly leakage, and the signal is largely linear
 
-- Dropping all pricing variables costs only ~0.04 AUC (0.687 → 0.649): the model
+- Dropping all pricing variables costs only ~0.05 AUC (0.687 → 0.640): the model
   keeps most of its discrimination from borrower attributes alone, so it is not
   merely echoing a pre-computed grade.
 - XGBoost beats a logistic baseline by only ~0.01 AUC: the relationship is
@@ -199,15 +199,18 @@ A PD score is an input, not a decision. Three components turn the model into a
 credit-risk decisioning system:
 
 **Decision policy simulator.** Sweeping the approval cutoff shows the
-approval-rate / default-rate / expected-profit trade-off. On the test book the
-profit-maximizing cutoff approves the lowest-risk ~35% of applicants at an ~11%
-default rate — deliberately not the lowest-default option, because interest on
+approval-rate / default-rate / expected-profit trade-off. The cutoff is selected
+on the 2015 validation book, then frozen and evaluated once on the untouched 2016
+test book, so the reported profit carries no optimism bias from selecting and
+scoring on the same data. The profit-maximizing cutoff approves lower-risk
+applicants and accepts a moderate default rate — deliberately not the
+lowest-default option, because interest on
 good loans outweighs the losses. Below that cutoff the book is profitable; loosen
 too far and it turns loss-making. This reframes the model output as a business
 decision with a quantified optimum.
 
 **Champion / challenger.** Model selection is treated as governance, not a
-leaderboard: a logistic champion is compared against the XGBoost challenger
+leaderboard: the XGBoost champion (deployed and SHAP-explained) is compared against a logistic challenger
 across discrimination (AUC/KS), calibration (Brier), latency, and
 interpretability. The challenger's ~0.01 AUC edge does not justify its lower
 interpretability for the decision itself, so the recommendation is to decide with
@@ -239,7 +242,7 @@ drift monitor exists to support.
 - **Serving:** a FastAPI service exposes `/predict`, `/explain`, and
   `/portfolio/summary`, backed by persisted model artifacts loaded at startup.
 - **Containerization:** a Dockerfile trains and serves the model.
-- **Testing & CI:** a pytest suite (17 tests) covers metrics, split integrity,
+- **Testing & CI:** a pytest suite covers metrics, split integrity,
   portfolio math, PSI properties, and the explanation grounding guard; GitHub
   Actions runs it on every push.
 

@@ -15,7 +15,23 @@ from pathlib import Path
 
 import pandas as pd
 
+# Single source of truth for the good/bad status mapping, shared with the Python
+# target definition so SQL and Python cannot drift apart.
+try:
+    from src.oot_split import BAD_STATUS, GOOD_STATUS
+except ModuleNotFoundError:
+    from oot_split import BAD_STATUS, GOOD_STATUS
+
+# Build SQL fragments from the Python constants
+_BAD_LIST = ", ".join(f"'{s}'" for s in BAD_STATUS)
+_RESOLVED_LIST = ", ".join(f"'{s}'" for s in (BAD_STATUS + GOOD_STATUS))
+BAD_CASE = f"CASE WHEN loan_status IN ({_BAD_LIST}) THEN 1.0 ELSE 0 END"
+BAD_CASE_INT = f"CASE WHEN loan_status IN ({_BAD_LIST}) THEN 1 ELSE 0 END"
+RESOLVED_WHERE = f"loan_status IN ({_RESOLVED_LIST})"
+RESOLVED_CASE_INT = f"CASE WHEN loan_status IN ({_RESOLVED_LIST}) THEN 1 ELSE 0 END"
+
 # Each query is named and documented so the output reads as a risk report.
+# Bad/resolved conditions are injected from the shared constants above.
 QUERIES = {
     "01_vintage_volume": """
         -- Loan volume and average amount by issue year (vintage)
@@ -34,10 +50,10 @@ QUERIES = {
         SELECT
             grade,
             COUNT(*)                                                       AS n_resolved,
-            SUM(CASE WHEN loan_status = 'Charged Off' THEN 1 ELSE 0 END)   AS n_bad,
-            ROUND(AVG(CASE WHEN loan_status = 'Charged Off' THEN 1.0 ELSE 0 END), 4) AS bad_rate
+            SUM({BAD_CASE_INT})   AS n_bad,
+            ROUND(AVG({BAD_CASE}), 4) AS bad_rate
         FROM loans
-        WHERE loan_status IN ('Charged Off', 'Fully Paid')
+        WHERE {RESOLVED_WHERE}
         GROUP BY grade
         ORDER BY grade;
     """,
@@ -47,9 +63,9 @@ QUERIES = {
         SELECT
             substr(issue_d, -4) AS vintage_year,
             COUNT(*)                                                       AS n_resolved,
-            ROUND(AVG(CASE WHEN loan_status = 'Charged Off' THEN 1.0 ELSE 0 END), 4) AS bad_rate
+            ROUND(AVG({BAD_CASE}), 4) AS bad_rate
         FROM loans
-        WHERE loan_status IN ('Charged Off', 'Fully Paid')
+        WHERE {RESOLVED_WHERE}
         GROUP BY vintage_year
         ORDER BY vintage_year;
     """,
@@ -60,9 +76,8 @@ QUERIES = {
         SELECT
             substr(issue_d, -4) AS vintage_year,
             COUNT(*)                                                                AS n_total,
-            SUM(CASE WHEN loan_status IN ('Charged Off','Fully Paid') THEN 1 ELSE 0 END) AS n_resolved,
-            ROUND(1.0 * SUM(CASE WHEN loan_status IN ('Charged Off','Fully Paid')
-                                 THEN 1 ELSE 0 END) / COUNT(*), 3)                  AS resolved_pct
+            SUM({RESOLVED_CASE_INT}) AS n_resolved,
+            ROUND(1.0 * SUM({RESOLVED_CASE_INT}) / COUNT(*), 3)                  AS resolved_pct
         FROM loans
         GROUP BY vintage_year
         ORDER BY vintage_year;
@@ -85,9 +100,9 @@ QUERIES = {
         SELECT
             purpose,
             COUNT(*)                                                       AS n_resolved,
-            ROUND(AVG(CASE WHEN loan_status = 'Charged Off' THEN 1.0 ELSE 0 END), 4) AS bad_rate
+            ROUND(AVG({BAD_CASE}), 4) AS bad_rate
         FROM loans
-        WHERE loan_status IN ('Charged Off', 'Fully Paid')
+        WHERE {RESOLVED_WHERE}
         GROUP BY purpose
         HAVING COUNT(*) >= 100
         ORDER BY bad_rate DESC;
@@ -103,9 +118,9 @@ QUERIES = {
                 ELSE '4. 30+'
             END AS dti_band,
             COUNT(*)                                                       AS n_resolved,
-            ROUND(AVG(CASE WHEN loan_status = 'Charged Off' THEN 1.0 ELSE 0 END), 4) AS bad_rate
+            ROUND(AVG({BAD_CASE}), 4) AS bad_rate
         FROM loans
-        WHERE loan_status IN ('Charged Off', 'Fully Paid') AND dti IS NOT NULL
+        WHERE {RESOLVED_WHERE} AND dti IS NOT NULL
         GROUP BY dti_band
         ORDER BY dti_band;
     """,
@@ -116,15 +131,22 @@ QUERIES = {
             addr_state,
             COUNT(*)                        AS n_loans,
             ROUND(SUM(loan_amnt), 0)        AS exposure,
-            ROUND(AVG(CASE WHEN loan_status = 'Charged Off' THEN 1.0 ELSE 0 END), 4) AS bad_rate
+            ROUND(AVG({BAD_CASE}), 4) AS bad_rate
         FROM loans
-        WHERE loan_status IN ('Charged Off', 'Fully Paid')
+        WHERE {RESOLVED_WHERE}
         GROUP BY addr_state
         ORDER BY exposure DESC
         LIMIT 10;
     """,
 }
 
+
+# Inject the shared status fragments into each query
+_FMT = dict(
+    BAD_CASE=BAD_CASE, BAD_CASE_INT=BAD_CASE_INT,
+    RESOLVED_WHERE=RESOLVED_WHERE, RESOLVED_CASE_INT=RESOLVED_CASE_INT,
+)
+QUERIES = {name: sql.format(**_FMT) for name, sql in QUERIES.items()}
 
 def build_database(sample_path: str = "data/sample.csv") -> sqlite3.Connection:
     """Load the loan book into an in-memory SQLite database."""

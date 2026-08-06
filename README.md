@@ -52,7 +52,7 @@ much they inflate the result, and whether the gradient boosting is justified:
 | Model | AUC | KS |
 |---|---|---|
 | FULL — XGBoost, all features | 0.687 | 0.286 |
-| NO_PRICING — without int_rate/grade/sub_grade | 0.649 | 0.227 |
+| NO_PRICING — without int_rate/grade/sub_grade/installment | 0.640 | 0.218 |
 | BASELINE — logistic regression | 0.676 | 0.260 |
 
 Removing the pricing variables costs only ~0.04 AUC, so the model is not merely
@@ -67,13 +67,16 @@ credit-risk decisioning system:
 
 - **Decision policy simulator** ([`src/policy.py`](src/policy.py)) — sweeps the
   approval cutoff and computes the approval-rate / default-rate / expected-profit
-  trade-off. On the test book the profit-maximizing cutoff approves the lowest-risk
-  ~35% and accepts an ~11% default rate — deliberately *not* the lowest-default
+  trade-off. The cutoff is **selected on the 2015 validation book and then frozen
+  and evaluated once on the untouched 2016 test book**, so the reported profit is
+  free of the optimism bias that arises from choosing and scoring a policy on the
+  same data. The profit-maximizing cutoff is deliberately *not* the lowest-default
   option, because interest on good loans outweighs the losses.
 - **Champion / challenger** ([`src/champion_challenger.py`](src/champion_challenger.py))
-  — compares a logistic champion against the XGBoost challenger across
+  — compares the XGBoost champion (the deployed, SHAP-explained model) against
   discrimination, calibration, latency, and interpretability, and recommends the
-  interpretable model for decisions with the challenger reserved for SHAP reasons.
+  a logistic-regression challenger; XGBoost is deployed for the decision and
+  SHAP explains that same champion, with logistic kept as an interpretable fallback.
 - **SQL risk mart** ([`src/risk_mart.py`](src/risk_mart.py)) — eight standard
   portfolio queries (vintage curves, bad-rate by grade, resolution rate,
   concentration) run over the loan book in SQLite.
@@ -137,7 +140,7 @@ credit-risk-analytics/
 │   ├── make_sample.py      # Build a lightweight sample from the full dataset
 │   └── train_and_save.py   # Train and persist model artifacts for serving
 ├── notebooks/01_eda.py     # EDA (VS Code cell format)
-├── tests/                  # pytest suite (17 tests)
+├── tests/                  # pytest suite (model, policy, explanation, SQL, API)
 ├── reports/                # Generated figures
 ├── Dockerfile
 ├── TARGET_DEFINITION.md    # Target logic + right-censoring analysis

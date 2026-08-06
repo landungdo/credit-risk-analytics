@@ -5,6 +5,7 @@ Endpoints:
 - GET  /health                 liveness check
 - POST /predict                calibrated PD for one application
 - POST /explain                PD + top SHAP drivers for one application
+- POST /decision               PD + approve/review/decline decision + versions
 - POST /portfolio/summary      expected loss + capital for a batch
 
 The trained artifacts are loaded once at startup (see scripts/train_and_save.py).
@@ -13,6 +14,7 @@ than a 500.
 """
 
 import pickle
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -21,27 +23,31 @@ from pydantic import BaseModel, Field
 
 from src.explain import build_explainer, top_drivers
 from src.portfolio import portfolio_summary
+from src.policy import assign_decision
 
 ARTIFACT_DIR = Path("artifacts")
 
-app = FastAPI(title="Credit Risk API", version="1.0")
+app = FastAPI(title="Credit Risk API", version="2.1")
 
 # Loaded at startup
 _model = None
 _calibrated = None
 _feature_columns = None
 _explainer = None
+_policy = None
 
 
 @app.on_event("startup")
 def load_artifacts():
-    global _model, _calibrated, _feature_columns, _explainer
+    global _model, _calibrated, _feature_columns, _explainer, _policy
     with open(ARTIFACT_DIR / "model.pkl", "rb") as f:
         _model = pickle.load(f)
     with open(ARTIFACT_DIR / "calibrated.pkl", "rb") as f:
         _calibrated = pickle.load(f)
     with open(ARTIFACT_DIR / "feature_columns.pkl", "rb") as f:
         _feature_columns = pickle.load(f)
+    with open(ARTIFACT_DIR / "policy.json") as f:
+        _policy = json.load(f)
     _explainer = build_explainer(_model)
 
 
@@ -104,6 +110,41 @@ def explain(application: Application):
     pd_score = float(_calibrated.predict_proba(row)[:, 1][0])
     drivers = top_drivers(_explainer, row)
     return {"probability_of_default": pd_score, "drivers": drivers}
+
+
+@app.post("/decision")
+def decision(application: Application):
+    """
+    Full credit decision for one application: PD, an approve/review/decline
+    decision from the frozen policy, the model and policy versions, and reason
+    codes derived from the SAME XGBoost champion that produced the PD — so the
+    explanation describes the decision actually made.
+    """
+    if _calibrated is None or _policy is None:
+        raise HTTPException(503, "Model or policy not loaded")
+
+    row = _to_frame(application)
+    pd_score = float(_calibrated.predict_proba(row)[:, 1][0])
+
+    band = assign_decision(
+        pd_score, _policy["approve_below"], _policy["review_below"]
+    )
+
+    # Reason codes: the risk-increasing SHAP drivers of THIS prediction
+    drivers = top_drivers(_explainer, row)
+    reason_codes = [
+        d["feature"] for d in drivers if d["direction"] == "increases_risk"
+    ]
+
+    return {
+        "probability_of_default": pd_score,
+        "decision": band,
+        "approve_below": _policy["approve_below"],
+        "review_below": _policy["review_below"],
+        "reason_codes": reason_codes,
+        "model_version": _policy["model_version"],
+        "policy_version": _policy["policy_version"],
+    }
 
 
 class PortfolioRequest(BaseModel):

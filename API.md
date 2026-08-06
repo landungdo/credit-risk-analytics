@@ -51,6 +51,26 @@ PD plus the top SHAP drivers behind it.
 }
 ```
 
+### `POST /decision`
+The full credit decision for one application: PD, an approve / manual-review /
+decline decision from the frozen policy (cutoffs selected on the 2015 validation
+book), the model and policy versions, and reason codes derived from the same
+XGBoost champion that produced the PD — so the explanation describes the decision
+actually made.
+```json
+{
+  "probability_of_default": 0.172,
+  "decision": "APPROVE",
+  "approve_below": 0.20,
+  "review_below": 0.25,
+  "reason_codes": ["term", "int_rate", "dti"],
+  "model_version": "xgb-champion-v2.1",
+  "policy_version": "policy-v2.1"
+}
+```
+The policy is loaded once at startup from `artifacts/policy.json`. Invalid input
+returns HTTP 422.
+
 ### `POST /portfolio/summary`
 Expected loss and Basel-style capital for a batch of applications.
 

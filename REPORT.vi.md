@@ -135,12 +135,12 @@ không. Ba mô hình trên cùng một phép chia:
 | Mô hình | AUC | KS |
 |---|---|---|
 | FULL — XGBoost, mọi đặc trưng | 0,687 | 0,286 |
-| NO_PRICING — bỏ int_rate/grade/sub_grade | 0,649 | 0,227 |
+| NO_PRICING — bỏ int_rate/grade/sub_grade/installment | 0,640 | 0,218 |
 | BASELINE — hồi quy logistic, mọi đặc trưng | 0,676 | 0,260 |
 
 ### Phát hiện quan trọng #2 — điểm số không chủ yếu do rò rỉ, và tín hiệu phần lớn tuyến tính
 
-- Bỏ toàn bộ biến định giá chỉ làm giảm ~0,04 AUC (0,687 → 0,649): mô hình vẫn giữ
+- Bỏ toàn bộ biến định giá chỉ làm giảm ~0,05 AUC (0,687 → 0,640): mô hình vẫn giữ
   phần lớn khả năng phân biệt chỉ từ đặc điểm người vay, nên không phải chỉ lặp lại
   một grade đã chấm sẵn.
 - XGBoost hơn baseline hồi quy logistic chỉ ~0,01 AUC: quan hệ phần lớn là tuyến
@@ -212,7 +212,7 @@ hệ giám sát trôi tồn tại để hỗ trợ.
 - **Phục vụ (serving):** một service FastAPI cung cấp `/predict`, `/explain`, và
   `/portfolio/summary`, dựa trên các artifact mô hình đã lưu và nạp lúc khởi động.
 - **Đóng gói container:** một Dockerfile huấn luyện và phục vụ mô hình.
-- **Kiểm thử & CI:** bộ kiểm thử pytest (17 test) bao phủ metrics, tính toàn vẹn
+- **Kiểm thử & CI:** bộ kiểm thử pytest bao phủ metrics, tính toàn vẹn
   của phép chia, tính toán danh mục, tính chất PSI, và cơ chế grounding của phần
   giải thích; GitHub Actions chạy bộ test này mỗi lần push.
 
