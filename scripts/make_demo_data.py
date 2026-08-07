@@ -15,7 +15,7 @@ from pathlib import Path
 # Reuse the exact synthetic generator used by the test fixture, so demo data and
 # test data share one definition.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from tests.conftest import _make_synthetic
+from src.demo_data import _make_synthetic
 
 OUTPUT = Path("data/sample.csv")
 

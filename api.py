@@ -21,13 +21,13 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+from contextlib import asynccontextmanager
+
 from src.explain import build_explainer, top_drivers
 from src.portfolio import portfolio_summary
 from src.policy import assign_decision
 
 ARTIFACT_DIR = Path("artifacts")
-
-app = FastAPI(title="Credit Risk API", version="2.1")
 
 # Loaded at startup
 _model = None
@@ -37,8 +37,8 @@ _explainer = None
 _policy = None
 
 
-@app.on_event("startup")
 def load_artifacts():
+    """Load model, calibrator, feature schema, and policy into module state."""
     global _model, _calibrated, _feature_columns, _explainer, _policy
     with open(ARTIFACT_DIR / "model.pkl", "rb") as f:
         _model = pickle.load(f)
@@ -49,6 +49,16 @@ def load_artifacts():
     with open(ARTIFACT_DIR / "policy.json") as f:
         _policy = json.load(f)
     _explainer = build_explainer(_model)
+
+
+@asynccontextmanager
+async def lifespan(app):
+    # Load artifacts once at startup, before the app serves any request
+    load_artifacts()
+    yield
+
+
+app = FastAPI(title="Credit Risk API", version="2.1", lifespan=lifespan)
 
 
 class Application(BaseModel):

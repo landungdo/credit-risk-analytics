@@ -201,8 +201,11 @@ thành một hệ thống ra quyết định tín dụng:
 **Bộ mô phỏng chính sách (policy simulator).** Quét ngưỡng duyệt cho thấy đánh đổi
 tỷ lệ duyệt / tỷ lệ vỡ nợ / lợi nhuận kỳ vọng. Ngưỡng cutoff được **chọn trên tập
 validation 2015, rồi đóng băng và đánh giá một lần trên tập test 2016 chưa đụng
-tới**, nên lợi nhuận báo cáo không dính optimism bias từ việc chọn và chấm điểm
-trên cùng một tập dữ liệu. Ngưỡng tối ưu lợi nhuận cố tình *không* phải ngưỡng ít
+tới**, nên lợi nhuận báo cáo không dính optimism bias *trên tập test* — cutoff
+không bao giờ nhìn thấy dữ liệu test. (Cutoff được chọn trên cùng vintage 2015
+đã dùng cho calibration và early stopping; thiết kế chặt hơn sẽ chia 2015 thành
+hai nửa riêng cho calibration và chọn policy — điều này được ghi nhận như một
+cải tiến.) Ngưỡng tối ưu lợi nhuận cố tình *không* phải ngưỡng ít
 vỡ nợ nhất, vì lãi từ khách tốt bù được tổn thất.
 
 **Champion / challenger.** Chọn mô hình được coi là bài toán governance, không

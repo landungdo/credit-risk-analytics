@@ -244,9 +244,14 @@ drift monitor exists to support.
 
 ## 10. Engineering
 
-- **Serving:** a FastAPI service exposes `/predict`, `/explain`, and
-  `/portfolio/summary`, backed by persisted model artifacts loaded at startup.
-- **Containerization:** a Dockerfile trains and serves the model.
+- **Serving:** a FastAPI service exposes `/predict`, `/explain`, `/decision`,
+  and `/portfolio/summary`, backed by persisted model artifacts and a versioned
+  `policy.json` loaded at startup. `/decision` returns the PD, an
+  approve/manual-review/decline decision from the frozen policy, model/policy
+  versions, and SHAP reason codes from the same champion; invalid inputs are
+  rejected with HTTP 422.
+- **Containerization:** a Dockerfile trains and serves the model, generating a
+  synthetic demo dataset at build time so it builds from a clean clone.
 - **Testing & CI:** a pytest suite covers metrics, split integrity,
   portfolio math, PSI properties, and the explanation grounding guard; GitHub
   Actions runs it on every push.

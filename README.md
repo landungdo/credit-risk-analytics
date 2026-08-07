@@ -45,8 +45,9 @@ and the portfolio layer aggregates the calibrated PDs into an expected loss of
 
 ### Ablation: leakage check and baselines
 
-Because `int_rate`, `grade`, and `sub_grade` are assigned by Lending Club's own
-risk process, [`experiments/ablation.py`](experiments/ablation.py) checks how
+Because `int_rate`, `grade`, `sub_grade`, and the derived `installment` are
+assigned during Lending Club's own pricing/underwriting,
+[`experiments/ablation.py`](experiments/ablation.py) checks how
 much they inflate the result, and whether the gradient boosting is justified:
 
 | Model | AUC | KS |
@@ -55,7 +56,7 @@ much they inflate the result, and whether the gradient boosting is justified:
 | NO_PRICING — without int_rate/grade/sub_grade/installment | 0.640 | 0.218 |
 | BASELINE — logistic regression | 0.676 | 0.260 |
 
-Removing the pricing variables costs only ~0.04 AUC, so the model is not merely
+Removing the pricing variables costs only ~0.05 AUC, so the model is not merely
 echoing a pre-computed grade; and XGBoost beats a logistic baseline by only
 ~0.01, so the signal is largely linear. See
 [`ABLATION_FINDINGS.md`](ABLATION_FINDINGS.md) for the full discussion.
@@ -75,10 +76,12 @@ credit-risk decisioning system:
   and policy-selection halves, which is noted as a refinement.) The profit-maximizing cutoff is deliberately *not* the lowest-default
   option, because interest on good loans outweighs the losses.
 - **Champion / challenger** ([`src/champion_challenger.py`](src/champion_challenger.py))
-  — compares the XGBoost champion (the deployed, SHAP-explained model) against
-  discrimination, calibration, latency, and interpretability, and recommends the
-  a logistic-regression challenger; XGBoost is deployed for the decision and
-  SHAP explains that same champion, with logistic kept as an interpretable fallback.
+  — compares the XGBoost champion against a logistic-regression challenger across
+  discrimination, calibration, latency, and interpretability. XGBoost is the
+  champion because it holds a small but consistent out-of-time lift and captures
+  nonlinear interactions; it is also the model SHAP explains, so the reason codes
+  describe the deployed decision. The logistic model is kept as an interpretable
+  challenger and fallback.
 - **SQL risk mart** ([`src/risk_mart.py`](src/risk_mart.py)) — eight standard
   portfolio queries (vintage curves, bad-rate by grade, resolution rate,
   concentration) run over the loan book in SQLite.

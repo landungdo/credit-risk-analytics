@@ -20,7 +20,10 @@ describe the deployed decision. XGBoost is therefore the champion here, so the
 SHAP-based adverse-action reasons explain the same model that decides. The
 logistic challenger is kept as an interpretable benchmark: because it is within
 ~0.01 AUC, it documents that the extra complexity is a deliberate, bounded choice
-made to support per-decision explanations, not an unexamined default.
+made to support per-decision explanations. XGBoost is retained as champion for
+two reasons together: a small but consistent out-of-time lift with nonlinear
+interaction capture, and being the model SHAP explains so reason codes match the
+deployed decision — not SHAP alone.
 """
 
 import time

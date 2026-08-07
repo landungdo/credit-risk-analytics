@@ -6,10 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code and tests (conftest holds the synthetic generator)
+# Copy the application code and the demo-data generator (src/demo_data.py)
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-COPY tests/ ./tests/
 COPY api.py .
 
 # The real Lending Club data is licensed and gitignored, so it is NOT in the
