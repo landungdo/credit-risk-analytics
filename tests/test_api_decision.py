@@ -82,3 +82,24 @@ def test_policy_loaded_once(client):
     import api
     assert api._policy is not None
     assert api._policy["policy_version"] == "policy-v2.1"
+
+
+def test_negative_loan_amount_rejected(client):
+    """Economically impossible input (negative amount) must return 422."""
+    bad = dict(VALID_APPLICATION)
+    bad["loan_amnt"] = -5000
+    assert client.post("/decision", json=bad).status_code == 422
+
+
+def test_nonstandard_term_rejected(client):
+    """A term other than 36 or 60 must return 422."""
+    bad = dict(VALID_APPLICATION)
+    bad["term"] = 48
+    assert client.post("/decision", json=bad).status_code == 422
+
+
+def test_negative_interest_rate_rejected(client):
+    """A negative interest rate must return 422."""
+    bad = dict(VALID_APPLICATION)
+    bad["int_rate"] = -3.0
+    assert client.post("/decision", json=bad).status_code == 422

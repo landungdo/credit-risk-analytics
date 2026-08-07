@@ -27,10 +27,12 @@ the ultra-safe option, because interest from good loans more than covers the
 losses. Tightening further sacrifices profit; loosening past this point turns
 the book loss-making.
 
-**3. A simple model is enough.** A transparent scorecard-style model performs
-within ~0.01 AUC of a complex one. We can deploy the interpretable model and use
-the complex one only to generate the per-decision reason codes regulation
-requires.
+**3. Complexity is a deliberate, bounded choice.** A transparent scorecard-style
+model performs within ~0.01 AUC of the gradient-boosted one. We deploy the
+gradient-boosted model because it also powers the per-decision SHAP reason codes
+regulation requires — so the same model both decides and is explained — while the
+simple model is kept as an interpretable benchmark and fallback. The small
+accuracy gap is stated openly rather than used to oversell the complex model.
 
 ## What this is worth
 

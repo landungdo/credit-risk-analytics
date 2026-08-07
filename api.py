@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.explain import build_explainer, top_drivers
 from src.portfolio import portfolio_summary
@@ -52,20 +52,25 @@ def load_artifacts():
 
 
 class Application(BaseModel):
-    """One loan application. Fields mirror the engineered feature schema."""
-    loan_amnt: float
-    int_rate: float
-    installment: float
-    annual_inc: float
-    dti: float | None = None
-    delinq_2yrs: float = 0
-    open_acc: float = 0
-    pub_rec: float = 0
-    revol_bal: float = 0
-    revol_util: float | None = None
-    total_acc: float = 0
-    emp_length_years: float | None = None
-    credit_history_months: float | None = None
+    """One loan application. Fields mirror the engineered feature schema.
+
+    Field constraints reject economically impossible inputs (negative money,
+    out-of-range rates, non-standard terms) with a 422 before they reach the
+    model, rather than silently scoring nonsense.
+    """
+    loan_amnt: float = Field(..., gt=0, description="requested amount, > 0")
+    int_rate: float = Field(..., ge=0, le=100, description="interest rate %, 0-100")
+    installment: float = Field(..., gt=0)
+    annual_inc: float = Field(..., ge=0)
+    dti: float | None = Field(default=None, ge=0, le=1000)
+    delinq_2yrs: float = Field(default=0, ge=0)
+    open_acc: float = Field(default=0, ge=0)
+    pub_rec: float = Field(default=0, ge=0)
+    revol_bal: float = Field(default=0, ge=0)
+    revol_util: float | None = Field(default=None, ge=0)
+    total_acc: float = Field(default=0, ge=0)
+    emp_length_years: float | None = Field(default=None, ge=0, le=50)
+    credit_history_months: float | None = Field(default=None, ge=0)
     term: int = Field(..., description="36 or 60")
     grade: str
     sub_grade: str
@@ -73,6 +78,13 @@ class Application(BaseModel):
     verification_status: str
     purpose: str
     addr_state: str
+
+    @field_validator("term")
+    @classmethod
+    def term_must_be_standard(cls, v: int) -> int:
+        if v not in (36, 60):
+            raise ValueError("term must be 36 or 60")
+        return v
 
 
 def _to_frame(app_in: Application) -> pd.DataFrame:

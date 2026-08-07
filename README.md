@@ -68,9 +68,11 @@ credit-risk decisioning system:
 - **Decision policy simulator** ([`src/policy.py`](src/policy.py)) — sweeps the
   approval cutoff and computes the approval-rate / default-rate / expected-profit
   trade-off. The cutoff is **selected on the 2015 validation book and then frozen
-  and evaluated once on the untouched 2016 test book**, so the reported profit is
-  free of the optimism bias that arises from choosing and scoring a policy on the
-  same data. The profit-maximizing cutoff is deliberately *not* the lowest-default
+  and evaluated once on the untouched 2016 test book**, so the reported test
+  profit is free of *test-set* optimism bias — the cutoff never sees the test
+  data. (The cutoff is selected on the same 2015 vintage used for calibration and
+  early stopping; a stricter design would split 2015 into separate calibration
+  and policy-selection halves, which is noted as a refinement.) The profit-maximizing cutoff is deliberately *not* the lowest-default
   option, because interest on good loans outweighs the losses.
 - **Champion / challenger** ([`src/champion_challenger.py`](src/champion_challenger.py))
   — compares the XGBoost champion (the deployed, SHAP-explained model) against

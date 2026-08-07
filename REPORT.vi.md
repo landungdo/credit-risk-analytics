@@ -193,6 +193,34 @@ và là lý do vì sao phần hiệu chỉnh (Mục 5.2) lại quan trọng.
 
 ---
 
+## 8b. Từ dự đoán đến quyết định
+
+Một điểm PD chỉ là đầu vào, không phải quyết định. Ba thành phần biến mô hình
+thành một hệ thống ra quyết định tín dụng:
+
+**Bộ mô phỏng chính sách (policy simulator).** Quét ngưỡng duyệt cho thấy đánh đổi
+tỷ lệ duyệt / tỷ lệ vỡ nợ / lợi nhuận kỳ vọng. Ngưỡng cutoff được **chọn trên tập
+validation 2015, rồi đóng băng và đánh giá một lần trên tập test 2016 chưa đụng
+tới**, nên lợi nhuận báo cáo không dính optimism bias từ việc chọn và chấm điểm
+trên cùng một tập dữ liệu. Ngưỡng tối ưu lợi nhuận cố tình *không* phải ngưỡng ít
+vỡ nợ nhất, vì lãi từ khách tốt bù được tổn thất.
+
+**Champion / challenger.** Chọn mô hình được coi là bài toán governance, không
+phải bảng xếp hạng: XGBoost champion (được triển khai và giải thích bằng SHAP)
+được so với logistic challenger trên bốn chiều — khả năng phân biệt (AUC/KS),
+hiệu chỉnh (Brier), độ trễ, khả năng giải thích. Champion chỉ hơn ~0,01 AUC, nêu
+rõ ràng: độ phức tạp được biện minh không phải bằng độ chính xác mà bằng nhu cầu
+gán SHAP cho từng quyết định để sinh reason codes. XGBoost vừa ra quyết định vừa
+được giải thích, nên reason codes mô tả đúng mô hình triển khai; logistic giữ lại
+làm benchmark và phương án dự phòng.
+
+**SQL risk mart.** Tám truy vấn danh mục chuẩn (vintage curve, bad-rate theo
+grade, tỷ lệ hoàn tất, tập trung dư nợ) chạy trên sổ vay bằng SQL — tầng báo cáo
+mà một đội rủi ro sống cùng bên cạnh mô hình.
+
+Một executive memo một trang dịch toàn bộ điều này sang ngôn ngữ kinh doanh cho
+người đọc không chuyên kỹ thuật.
+
 ## 9. Giám sát trôi phân phối (drift)
 
 Chỉ số Population Stability Index (PSI) được tính tổng thể và theo từng nhóm nhỏ.
@@ -209,8 +237,13 @@ hệ giám sát trôi tồn tại để hỗ trợ.
 
 ## 10. Kỹ thuật (Engineering)
 
-- **Phục vụ (serving):** một service FastAPI cung cấp `/predict`, `/explain`, và
-  `/portfolio/summary`, dựa trên các artifact mô hình đã lưu và nạp lúc khởi động.
+- **Phục vụ (serving):** một service FastAPI cung cấp `/predict`, `/explain`,
+  `/decision`, và `/portfolio/summary`, dựa trên các artifact mô hình đã lưu và
+  nạp lúc khởi động. Endpoint `/decision` trả về PD, quyết định
+  approve/manual-review/decline theo chính sách đã "đóng băng" (ngưỡng chọn trên
+  tập validation 2015), kèm model/policy version và reason codes từ chính XGBoost
+  champion đã sinh ra PD — nên lời giải thích mô tả đúng quyết định thực. Đầu vào
+  bất hợp lệ (số âm, term khác 36/60) bị chặn bằng lỗi 422.
 - **Đóng gói container:** một Dockerfile huấn luyện và phục vụ mô hình.
 - **Kiểm thử & CI:** bộ kiểm thử pytest bao phủ metrics, tính toàn vẹn
   của phép chia, tính toán danh mục, tính chất PSI, và cơ chế grounding của phần

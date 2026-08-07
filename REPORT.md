@@ -201,8 +201,10 @@ credit-risk decisioning system:
 **Decision policy simulator.** Sweeping the approval cutoff shows the
 approval-rate / default-rate / expected-profit trade-off. The cutoff is selected
 on the 2015 validation book, then frozen and evaluated once on the untouched 2016
-test book, so the reported profit carries no optimism bias from selecting and
-scoring on the same data. The profit-maximizing cutoff approves lower-risk
+test book, so the reported test profit carries no test-set optimism bias: the
+cutoff never sees the test data. (It is selected on the same 2015 vintage used
+for calibration and early stopping; splitting 2015 into separate calibration and
+policy-selection halves would tighten this further and is noted as a refinement.) The profit-maximizing cutoff approves lower-risk
 applicants and accepts a moderate default rate — deliberately not the
 lowest-default option, because interest on
 good loans outweighs the losses. Below that cutoff the book is profitable; loosen
@@ -212,9 +214,12 @@ decision with a quantified optimum.
 **Champion / challenger.** Model selection is treated as governance, not a
 leaderboard: the XGBoost champion (deployed and SHAP-explained) is compared against a logistic challenger
 across discrimination (AUC/KS), calibration (Brier), latency, and
-interpretability. The challenger's ~0.01 AUC edge does not justify its lower
-interpretability for the decision itself, so the recommendation is to decide with
-the interpretable model and reserve the challenger for SHAP-based reason codes.
+interpretability. The champion's edge over the challenger is small (~0.01 AUC),
+which is stated openly: the extra complexity is justified not by accuracy but by
+the need for per-decision SHAP attribution to power adverse-action reason codes.
+XGBoost therefore both makes the decision and is explained, so the reason codes
+describe the deployed model; the logistic challenger is retained as an
+interpretable benchmark and fallback.
 
 **SQL risk mart.** Eight standard portfolio queries (vintage curves, bad-rate by
 grade, resolution rate, exposure concentration) run over the loan book in SQL —

@@ -15,13 +15,13 @@ out-of-time split.
 | Model | AUC | KS |
 |---|---|---|
 | FULL — XGBoost, all features | 0.687 | 0.286 |
-| NO_PRICING — XGBoost without int_rate/grade/sub_grade | 0.649 | 0.227 |
+| NO_PRICING — XGBoost without int_rate/grade/sub_grade/installment | 0.640 | 0.218 |
 | BASELINE — logistic regression, all features | 0.676 | 0.260 |
 
 ## Interpretation
 
-**On leakage.** Removing all three pricing variables lowers AUC by only ~0.04
-(0.687 -> 0.649). The model keeps most of its discrimination using borrower
+**On leakage.** Removing all four pricing variables lowers AUC by only ~0.05
+(0.687 -> 0.640). The model keeps most of its discrimination using borrower
 attributes alone (income, DTI, credit history, etc.). So the pricing variables
 add a modest lift but are not the whole story — this is not a case where the
 model is merely echoing a pre-computed grade. The honest framing: pricing
